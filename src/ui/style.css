@@ -1,0 +1,97 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0e14;
+  --panel: #121824;
+  --panel-2: #182032;
+  --line: #232b3a;
+  --text: #dbe2ee;
+  --muted: #8b95a5;
+  --accent: #5eb0ef;
+  --good: #7ad08a;
+  --warn: #ef8a5e;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+button, select, input { font: inherit; color: inherit; }
+button {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: #1f4d7a; border-color: #2b6ba8; }
+button.active { background: #1f4d7a; border-color: var(--accent); }
+select, input[type='number'] {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.toolbar .group { display: flex; gap: 6px; align-items: center; }
+.toolbar .right { margin-left: auto; }
+.toolbar label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.check input { accent-color: var(--accent); }
+
+.layout { flex: 1; display: flex; min-height: 0; }
+.field { flex: 1; position: relative; min-width: 0; }
+.field canvas { display: block; cursor: crosshair; }
+.field-hud {
+  position: absolute; left: 10px; bottom: 8px; color: var(--muted); font-size: 12px;
+  background: rgba(11, 14, 20, 0.7); padding: 3px 8px; border-radius: 6px; pointer-events: none;
+}
+.side { width: 460px; max-width: 46vw; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 4px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
+.tab-body { flex: 1; overflow-y: auto; padding: 12px; }
+.tab-body[hidden] { display: none; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.card span { display: block; color: var(--muted); font-size: 12px; }
+.card b { font-size: 19px; font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+
+.chart { margin-bottom: 14px; }
+.chart h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
+.chart .hint { margin: 0 0 4px; }
+.u-legend { font-size: 12px; color: var(--muted); }
+
+.insp-empty { color: var(--muted); padding: 20px 4px; }
+.insp-info { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; margin-bottom: 10px; }
+.insp-info div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 2px 0; }
+.insp-info span { color: var(--muted); }
+canvas.net { width: 100%; display: block; background: var(--bg); border-radius: 8px; border: 1px solid var(--line); }
+
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 12px; padding: 6px 10px 10px; }
+legend { color: var(--accent); padding: 0 6px; }
+.param { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 3px 0; }
+.param input { width: 100px; }
+.param em { color: var(--warn); font-style: normal; }
+.settings-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+.journal-row { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.journal-row time { color: var(--muted); min-width: 64px; font-variant-numeric: tabular-nums; }
+.journal-row.record { color: var(--good); }
+.journal-row.warn { color: var(--warn); }
+.journal-row.config { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .side { width: 100%; max-width: none; height: 55%; border-left: 0; border-top: 1px solid var(--line); }
+}

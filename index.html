@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Бактерии</title>
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="group">
+        <button id="btn-play" class="primary" title="Пуск / пауза (пробел)">⏸ Пауза</button>
+        <button id="btn-step" title="Один тик">Шаг</button>
+      </div>
+      <div class="group" id="speed-group" title="Скорость симуляции"></div>
+      <div class="group">
+        <label>Цвет
+          <select id="color-mode">
+            <option value="lineage">по семье</option>
+            <option value="energy">по энергии</option>
+            <option value="generation">по поколению</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="opt-vision" /> зрение</label>
+        <label class="check"><input type="checkbox" id="opt-follow" /> следить</label>
+        <button id="btn-fit" title="Вписать поле в окно">⤢</button>
+      </div>
+      <div class="group right">
+        <button id="btn-save">Сохранить</button>
+        <button id="btn-load">Загрузить</button>
+        <button id="btn-csv">CSV</button>
+        <input type="file" id="file-load" accept=".json,application/json" hidden />
+      </div>
+    </header>
+    <main class="layout">
+      <section class="field" id="field">
+        <canvas id="canvas"></canvas>
+        <div class="field-hud" id="hud"></div>
+      </section>
+      <aside class="side">
+        <nav class="tabs" id="tabs">
+          <button data-tab="stats" class="active">Статистика</button>
+          <button data-tab="charts">Графики</button>
+          <button data-tab="inspector">Инспектор</button>
+          <button data-tab="settings">Настройки</button>
+          <button data-tab="journal">Журнал</button>
+        </nav>
+        <div class="tab-body" id="tab-stats"></div>
+        <div class="tab-body" id="tab-charts" hidden></div>
+        <div class="tab-body" id="tab-inspector" hidden></div>
+        <div class="tab-body" id="tab-settings" hidden></div>
+        <div class="tab-body" id="tab-journal" hidden></div>
+      </aside>
+    </main>
+    <script type="module" src="/src/ui/app.ts"></script>
+  </body>
+</html>
