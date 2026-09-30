@@ -11,20 +11,24 @@
         <button id="btn-play" class="primary" title="Пуск / пауза (пробел)">⏸ Пауза</button>
         <button id="btn-step" title="Один тик">Шаг</button>
       </div>
-      <div class="group" id="speed-group" title="Скорость симуляции"></div>
+      <div class="group seg" id="speed-group" title="Скорость симуляции"></div>
       <div class="group">
         <label>Цвет
           <select id="color-mode">
+            <option value="type">по поведению</option>
             <option value="lineage">по семье</option>
+            <option value="size">по размеру</option>
             <option value="energy">по энергии</option>
             <option value="generation">по поколению</option>
           </select>
         </label>
         <label class="check"><input type="checkbox" id="opt-vision" /> зрение</label>
+        <label class="check" title="Следы движения у выбранной бактерии и у тех, кто в фокусе"><input type="checkbox" id="opt-trails" checked /> следы</label>
         <label class="check"><input type="checkbox" id="opt-follow" /> следить</label>
         <button id="btn-fit" title="Вписать поле в окно">⤢</button>
       </div>
       <div class="group right">
+        <button id="btn-end" title="Завершить запуск и показать отчёт">■ Завершить</button>
         <button id="btn-save">Сохранить</button>
         <button id="btn-load">Загрузить</button>
         <button id="btn-csv">CSV</button>
@@ -34,21 +38,28 @@
     <main class="layout">
       <section class="field" id="field">
         <canvas id="canvas"></canvas>
+        <div class="field-legend" id="legend"></div>
         <div class="field-hud" id="hud"></div>
       </section>
       <aside class="side">
         <nav class="tabs" id="tabs">
           <button data-tab="stats" class="active">Статистика</button>
+          <button data-tab="strategies">Стратегии</button>
           <button data-tab="charts">Графики</button>
+          <button data-tab="heat">Распределения</button>
+          <button data-tab="chronicle">Хроника</button>
           <button data-tab="inspector">Инспектор</button>
           <button data-tab="settings">Настройки</button>
-          <button data-tab="journal">Журнал</button>
+          <button data-tab="runs">Запуски</button>
         </nav>
         <div class="tab-body" id="tab-stats"></div>
+        <div class="tab-body" id="tab-strategies" hidden></div>
         <div class="tab-body" id="tab-charts" hidden></div>
+        <div class="tab-body" id="tab-heat" hidden></div>
+        <div class="tab-body" id="tab-chronicle" hidden></div>
         <div class="tab-body" id="tab-inspector" hidden></div>
         <div class="tab-body" id="tab-settings" hidden></div>
-        <div class="tab-body" id="tab-journal" hidden></div>
+        <div class="tab-body" id="tab-runs" hidden></div>
       </aside>
     </main>
     <script type="module" src="/src/ui/app.ts"></script>

@@ -1,15 +1,35 @@
 import type { Bacterium } from '../sim/entities';
 import type { World } from '../sim/world';
+import { TYPES } from '../sim/behavior';
+import { ZONE_TYPES } from '../sim/env';
 
-export type ColorMode = 'lineage' | 'energy' | 'generation';
+export type ColorMode = 'type' | 'lineage' | 'energy' | 'generation' | 'size';
+
+export type Focus =
+  | { kind: 'type'; idx: number }
+  | { kind: 'strategy'; name: string }
+  | { kind: 'lineage'; id: number }
+  | null;
 
 export interface DrawOpts {
   color: ColorMode;
   vision: boolean;
+  trails: boolean;
   selected: Bacterium | null;
+  focus: Focus;
 }
 
-/** Рисует поле на canvas; хранит камеру (масштаб и сдвиг). */
+export function inFocus(b: Bacterium, f: Focus): boolean {
+  if (!f) return true;
+  if (f.kind === 'type') return b.type === f.idx;
+  if (f.kind === 'strategy') return b.strategy === f.name;
+  return b.lineage === f.id;
+}
+
+const TRAIL_LEN = 90;
+const TRAIL_MAX = 250;
+
+/** Рисует поле на canvas; хранит камеру (масштаб и сдвиг) и следы движения. */
 export class Renderer {
   scale = 1;
   ox = 0;
@@ -20,6 +40,7 @@ export class Renderer {
   private dpr = 1;
   cw = 0;
   ch = 0;
+  private trails = new Map<number, number[]>();
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -69,9 +90,38 @@ export class Renderer {
     this.userMoved = true;
   }
 
+  clearTrails(): void {
+    this.trails.clear();
+  }
+
+  /** Запоминает позиции для следов (вызывать каждый кадр). */
+  private recordTrails(world: World, o: DrawOpts): void {
+    if (!o.trails) {
+      if (this.trails.size) this.trails.clear();
+      return;
+    }
+    const alive = new Set<number>();
+    let n = 0;
+    for (const b of world.bacteria) {
+      const want = b === o.selected || (o.focus && inFocus(b, o.focus));
+      if (!want || n >= TRAIL_MAX) continue;
+      n++;
+      alive.add(b.id);
+      let t = this.trails.get(b.id);
+      if (!t) this.trails.set(b.id, (t = []));
+      const lx = t[t.length - 2], ly = t[t.length - 1];
+      if (lx === undefined || Math.abs(lx - b.x) + Math.abs(ly - b.y) > 0.5) {
+        t.push(b.x, b.y);
+        if (t.length > TRAIL_LEN * 2) t.splice(0, 2);
+      }
+    }
+    for (const id of this.trails.keys()) if (!alive.has(id)) this.trails.delete(id);
+  }
+
   draw(world: World, o: DrawOpts): void {
     const { ctx, dpr, scale } = this;
     const cfg = world.cfg;
+    this.recordTrails(world, o);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#0b0e14';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -79,6 +129,34 @@ export class Renderer {
 
     ctx.fillStyle = '#121824';
     ctx.fillRect(0, 0, cfg.fieldW, cfg.fieldH);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, cfg.fieldW, cfg.fieldH);
+    ctx.clip();
+
+    // зоны
+    for (const z of world.zones) {
+      const zt = ZONE_TYPES[z.type];
+      ctx.fillStyle = zt.fill;
+      ctx.strokeStyle = zt.stroke;
+      ctx.lineWidth = 1.5 / scale;
+      ctx.setLineDash([6 / scale, 5 / scale]);
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // кусты еды: яркость = «здоровье»
+    for (const p of world.patches) {
+      ctx.strokeStyle = `rgba(95,207,128,${0.12 + 0.3 * p.health})`;
+      ctx.lineWidth = 1 / scale;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, cfg.patchRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
     ctx.lineWidth = 2 / scale;
     ctx.strokeStyle = '#2f3a4f';
     ctx.strokeRect(0, 0, cfg.fieldW, cfg.fieldH);
@@ -88,10 +166,27 @@ export class Renderer {
     ctx.beginPath();
     const fr = cfg.foodRadius;
     for (const f of world.foods) {
-      ctx.moveTo(f.x + fr, f.y);
-      ctx.arc(f.x, f.y, fr, 0, Math.PI * 2);
+      const r = f.e > cfg.foodEnergy * 1.05 || f.e < cfg.foodEnergy * 0.95 ? fr * 0.8 : fr;
+      ctx.moveTo(f.x + r, f.y);
+      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
     }
     ctx.fill();
+
+    // следы
+    if (this.trails.size) {
+      ctx.lineWidth = 1.2 / scale;
+      for (const [id, t] of this.trails) {
+        if (t.length < 4) continue;
+        const b = world.bacteria.find((x) => x.id === id);
+        ctx.strokeStyle = b ? this.colorOf(b, o.color, world) : '#fff';
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.moveTo(t[0], t[1]);
+        for (let i = 2; i < t.length; i += 2) ctx.lineTo(t[i], t[i + 1]);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
 
     // линии зрения
     if (o.vision) {
@@ -99,33 +194,42 @@ export class Renderer {
       ctx.lineWidth = 1 / scale;
       ctx.beginPath();
       for (const b of world.bacteria) {
-        if (!b.seesFood) continue;
+        if (!b.seesFood || !inFocus(b, o.focus)) continue;
         ctx.moveTo(b.x, b.y);
         ctx.lineTo(b.foodX, b.foodY);
       }
       ctx.stroke();
     }
 
-    // бактерии
-    const R = cfg.radius;
-    for (const b of world.bacteria) {
-      ctx.fillStyle = this.colorOf(b, o.color, cfg.maxEnergy, world.totals.maxGen);
+    // бактерии: сначала «приглушённые», потом в фокусе
+    const passes = o.focus ? [false, true] : [true];
+    for (const focused of passes) {
+      ctx.globalAlpha = focused ? 1 : 0.13;
+      for (const b of world.bacteria) {
+        if (o.focus && inFocus(b, o.focus) !== focused) continue;
+        const R = world.radiusOf(b);
+        ctx.fillStyle = this.colorOf(b, o.color, world);
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, R, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = Math.max(1, 1.2 / scale);
       ctx.beginPath();
-      ctx.arc(b.x, b.y, R, 0, Math.PI * 2);
-      ctx.fill();
+      for (const b of world.bacteria) {
+        if (o.focus && inFocus(b, o.focus) !== focused) continue;
+        const R = world.radiusOf(b);
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x + Math.cos(b.angle) * R * 1.5, b.y + Math.sin(b.angle) * R * 1.5);
+      }
+      ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    ctx.lineWidth = Math.max(1, 1.2 / scale);
-    ctx.beginPath();
-    for (const b of world.bacteria) {
-      ctx.moveTo(b.x, b.y);
-      ctx.lineTo(b.x + Math.cos(b.angle) * R * 1.5, b.y + Math.sin(b.angle) * R * 1.5);
-    }
-    ctx.stroke();
+    ctx.globalAlpha = 1;
 
     // выбранная
     const s = o.selected;
-    if (s) {
+    if (s && world.bacteria.includes(s)) {
+      const R = world.radiusOf(s);
       ctx.lineWidth = 2 / scale;
       ctx.strokeStyle = '#ffffff';
       ctx.beginPath();
@@ -134,7 +238,7 @@ export class Renderer {
       ctx.setLineDash([4 / scale, 4 / scale]);
       ctx.strokeStyle = 'rgba(255,255,255,0.4)';
       ctx.beginPath();
-      ctx.arc(s.x, s.y, cfg.visionRadius, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, world.visionOf(s), 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
       if (s.seesFood) {
@@ -147,28 +251,35 @@ export class Renderer {
     }
   }
 
-  private colorOf(b: Bacterium, mode: ColorMode, maxEnergy: number, maxGen: number): string {
+  colorOf(b: Bacterium, mode: ColorMode, world: World): string {
     switch (mode) {
       case 'energy':
-        return `hsl(${Math.round(Math.min(1, Math.max(0, b.energy / maxEnergy)) * 120)} 75% 52%)`;
+        return `hsl(${Math.round(Math.min(1, Math.max(0, b.energy / world.maxEnergyOf(b))) * 120)} 75% 52%)`;
       case 'generation': {
-        const t = maxGen > 0 ? b.generation / maxGen : 0;
+        const mg = world.totals.maxGen;
+        const t = mg > 0 ? b.generation / mg : 0;
         return `hsl(${Math.round(230 - t * 230)} 75% 55%)`;
       }
-      default:
+      case 'size': {
+        const t = Math.min(1, Math.max(0, (b.genome.traits.size - 0.5) / 1.5));
+        return `hsl(${Math.round(200 - t * 180)} 70% ${45 + t * 15}%)`;
+      }
+      case 'lineage':
         return `hsl(${Math.round(b.genome.hue * 360)} 70% 58%)`;
+      default:
+        return TYPES[b.type].color;
     }
   }
 
   /** Ближайшая бактерия к точке экрана (или null). */
   pick(world: World, sx: number, sy: number): Bacterium | null {
     const [wx, wy] = this.toWorld(sx, sy);
-    const reach = Math.max(world.cfg.radius * 1.6, 10 / this.scale);
     let best: Bacterium | null = null;
-    let bd = reach * reach;
+    let bd = Infinity;
     for (const b of world.bacteria) {
+      const reach = Math.max(world.radiusOf(b) * 1.6, 10 / this.scale);
       const d = (b.x - wx) ** 2 + (b.y - wy) ** 2;
-      if (d < bd) {
+      if (d < reach * reach && d < bd) {
         bd = d;
         best = b;
       }

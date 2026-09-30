@@ -12,6 +12,7 @@ const turn: Actuator = {
   id: 'turn',
   label: 'поворот',
   apply(b, v, w) {
+    b.turn = v;
     b.angle += v * w.cfg.maxTurn;
   },
 };
